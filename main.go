@@ -24,6 +24,8 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 }
 
 func (cfg *apiConfig) getMetrics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("Hits: %d", cfg.fileserverHits)))
 }
 
@@ -42,12 +44,14 @@ func main() {
 	}
 
 	r := chi.NewRouter()
-	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
-	r.Handle("/app", fsHandler)
-	r.Handle("/app/*", fsHandler)
-	r.Get("/healthz", handlerReadiness)
-	r.Get("/metrics", apiCfg.getMetrics)
-	r.Get("/reset", apiCfg.resetMetrics)
+	r.Route("/app", func(r chi.Router) {
+    r.Use(apiCfg.middlewareMetricsInc)
+    fsHandler := http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))
+    r.Handle("/*", fsHandler)
+})
+	r.Get("/api/healthz", handlerReadiness)
+	r.Get("/api/metrics", apiCfg.getMetrics)
+	r.Get("/api/reset", apiCfg.resetMetrics)
 
 	corsMux := middlewareCors(r)
 
