@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func validate(w http.ResponseWriter, r *http.Request) {
@@ -11,7 +12,7 @@ func validate(w http.ResponseWriter, r *http.Request) {
 		Body string `json:"body"`
 	}
 	type returnVals struct {
-		Valid bool `json:"valid"`
+		Valid string `json:"cleaned_body"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -29,8 +30,22 @@ func validate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, returnVals{
-		Valid: true,
+		Valid: filter(params.Body),
 	})
+}
+
+func filter(s string) string {
+	profane := map[string]bool{"kerfuffle": true, "sharbert": true, "fornax": true}
+	words := strings.Split(s, " ")
+	filtered := []string{}
+	for i := 0; i < len(words); i++ {
+		if profane[strings.ToLower(words[i])] {
+			filtered = append(filtered, "****")
+		} else {
+			filtered = append(filtered, words[i])
+		}
+	}
+	return strings.Join(filtered, " ")
 }
 
 func respondWithError(w http.ResponseWriter, code int, msg string) {
